@@ -18,13 +18,18 @@ using Emgu.CV.CvEnum;
 
 namespace Proaim {
     public partial class mainForm : Form {
+
+
         private MySqlConnection conn;
         public List<Luknja> luknje;
         Image<Bgr, byte> src;
+
+
         public mainForm() {
             InitializeComponent();
         }
 
+        // Glavna funkcija ob zacetku - inicializira in pripravi program
         private void mainForm_Load(object sender, EventArgs e) {
             Console.WriteLine("Main form loaded");
             luknje = new List<Luknja>();
@@ -47,37 +52,42 @@ namespace Proaim {
             loadDelovniNalogi();
         }
 
+        // Funkcija ob zaprtju programa - zapre povezavo z bazo
         private void mainForm_FormClosing(object sender, FormClosingEventArgs e) {
             conn.Clone();
             Console.WriteLine("Closing");
         }
 
+
+        // Funkcija za iskanje lukenj v "src" sliki
         private void detectCircles() {
             try {
                 const float scale_factor = 1f;
                 //const float scale_factor = 0.5f;
-                Image<Bgr, byte> img = src.Resize(scale_factor  , Inter.Nearest);
 
+                // Pripravi sliko
+                Image<Bgr, byte> img = src.Resize(scale_factor  , Inter.Nearest);
                 Image<Gray, byte> gray = img.Convert<Gray, byte>();
                 gray._GammaCorrect(0.5);
                 CvInvoke.MedianBlur(gray, gray, 5);
 
-
+                // Zaznaj luknje
                 CircleF[] HoughCircles = gray.Clone().HoughCircles(
                                         new Gray(cannyThrSlider.Value),
                                         new Gray(circleAccThrSlider.Value),
-                                        resSlider.Value / 10 +0.5, //Resolution of the accumulator used to detect centers of the circles
-                                        minDistSlider.Value, //min distance 
-                                        minRadSlider.Value, //min radius
-                                        maxRadSlider.Value //max radius
-                                        )[0]; //Get the circles from the first channel
+                                        resSlider.Value / 10 +0.5,
+                                        minDistSlider.Value,
+                                        minRadSlider.Value, 
+                                        maxRadSlider.Value
+                                        )[0];
 
-                bool populate = luknje.Count == 0;
-
+                
+                // Vse luknje naj bodo zaznane samo med dvema krogama 
                 PointF center_d = new PointF(1040f, 905f);
                 const float min_d = 480 * scale_factor;
                 const float max_d = 700 * scale_factor;
 
+                // Narisi ROI
                 img.Draw(new CircleF(center_d, min_d), new Bgr(Color.Blue), 2);
                 img.Draw(new CircleF(center_d, max_d), new Bgr(Color.Blue), 2);
 
@@ -85,6 +95,7 @@ namespace Proaim {
                 luknje.Clear();
                 luknjeGView.DataSource = luknje.ToList();
 
+                // Za vsako luknjo se izracuna ce je kjer jo pricakujemo
                 foreach (CircleF circle in HoughCircles) {
                     double dist = Math.Sqrt( Math.Pow((double)circle.Center.X - (double)center_d.X, 2.0d) + Math.Pow((double)circle.Center.Y - (double)center_d.Y, 2.0) );
                     if(dist < max_d && dist > min_d) {
@@ -102,6 +113,7 @@ namespace Proaim {
             }
         }
 
+        // Funkcija ki vrne naslednji index za auto_increment za doloceno tabelo
         private int nextAutoIncrement(string table) {
             try {
                 MySqlCommand cmd = conn.CreateCommand();
@@ -118,6 +130,7 @@ namespace Proaim {
             }
         }
 
+        // Poonastavi formo za kose
         private void clearKosi() {
             try {
                 guidTBox.Text = opombeTBox.Text = "";
@@ -130,6 +143,7 @@ namespace Proaim {
             }
         }
 
+        // Poonastavi formo za delovne naloge
         private void clearDelovniNalogiForm() {
             dnalogiIDTBox.Text = nextAutoIncrement("delovni_nalogi").ToString();
             stKosovNum.Value = 0;
@@ -137,6 +151,7 @@ namespace Proaim {
             casNarocilaPicker.Value = casKoncaPicker.Value = DateTime.Now;
         }
 
+        // Nalozi podatke o obstojecih delovnih nalogih na tabelo v programu
         private void loadDelovniNalogi() {
             try {
                 MySqlDataAdapter MyDA = new MySqlDataAdapter();
@@ -156,12 +171,14 @@ namespace Proaim {
             }
         }
 
+        // Poonastavi sliko
         private void clearImage() {
             displayPBox.Image = null;
             luknjeGView.DataSource = null;
             imgInfoLabel.Text = null;
         }
 
+        // Funkcija ki skrbi za nalaganje slike
         private void loadPicBtn_Click(object sender, EventArgs e) {
             try {
                 var fileContent = string.Empty;
@@ -177,6 +194,7 @@ namespace Proaim {
                         string possible_guid = Path.GetFileNameWithoutExtension(filePath);
                         clearKosi();
 
+                        // Ce ime slike streza guid formatu automaticno populiramo mesto za guid v formi
                         if(Regex.IsMatch(possible_guid, "(^([0-9A-Fa-f]{8}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{4}[-][0-9A-Fa-f]{12})$)")) {
                             guidTBox.Text = possible_guid;
                         }
@@ -197,10 +215,12 @@ namespace Proaim {
             }
         }
 
+        // Funkcija ki se sprozi, ko se parametri zaznavanja lukenj spremenijo
         private void ImgParamValueChanged(object sender, EventArgs e) {
             detectCircles();
         }
 
+        // Fukcija ki shrani formo za kose in luknje na bazo
         private void kosSaveBtn_Click(object sender, EventArgs e) {
             try {
                 MySqlCommand cmd = conn.CreateCommand();
@@ -239,6 +259,7 @@ namespace Proaim {
             }
         }
 
+        // Funkcija ki shrani delovni nalog na bazo
         private void dodajDnalogBtn_Click(object sender, EventArgs e) {
             try {
                 MySqlCommand cmd = conn.CreateCommand();
